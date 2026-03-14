@@ -1,0 +1,30 @@
+{
+  "name": "privylens",
+  "version": "1.0.0",
+  "description": "Privacy-preserving analytics dashboard with differential privacy",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:frontend\"",
+    "dev:api": "tsx backend/server.ts",
+    "dev:frontend": "cd frontend && npm run dev",
+    "worker": "tsx backend/worker/processor.ts",
+    "simulate": "tsx scripts/simulateUsers.ts",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.9.0",
+    "concurrently": "^9.1.0",
+    "prisma": "^5.22.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}

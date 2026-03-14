@@ -1,0 +1,31 @@
+// PrivyLens - SQLite schema (simulates DynamoDB in cloud architecture)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Event {
+  id        String @id @default(cuid())
+  userId    String
+  event     String
+  page      String
+  timestamp Int
+}
+
+model PageViewAggregate {
+  id         String @id @default(cuid())
+  page       String
+  count      Int
+  bucketTime Int
+}
+
+model PrivacyBudget {
+  id          String @id @default(cuid())
+  metric      String
+  epsilonUsed Float
+  timestamp   Int
+}
