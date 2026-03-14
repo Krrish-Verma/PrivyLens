@@ -1,17 +1,21 @@
 # PrivyLens
 
-Privacy-preserving analytics dashboard that demonstrates **differential privacy** in an analytics pipeline. Built for a technical demo: event ingestion, streaming, DP noise, privacy budgets, and an encrypted-storage-ready design—all runnable locally.
+**Privacy-Preserving Analytics Dashboard** — Deliver actionable user insights without ever exposing individual data. This project combines differential privacy with a cloud-native-style stack to ensure mathematically guaranteed privacy.
+
+This repo contains a **fully runnable local MVP**: event ingestion, streaming, differential privacy (Laplace noise), privacy budgets, and an analytics dashboard—all runnable on your machine.
 
 ## Overview
 
 PrivyLens lets organizations analyze user activity without exposing individual user data. It includes:
 
 - **Event ingestion** via REST API
-- **Streaming analytics** (in-memory queue → worker)
+- **Streaming analytics** (in-memory queue → worker, simulates Kinesis)
 - **Differential privacy** (Laplace mechanism)
 - **Privacy budgets** (ε per query, hard cap)
 - **Encryption utility** (AES-256, KMS-style)
 - **Analytics dashboard** (Next.js + Recharts)
+
+*(Cloud version: real-time ingestion via AWS Kinesis/API Gateway, DP engine with ε budgets in DynamoDB, Fargate/Lambda, KMS-encrypted storage, CloudWatch monitoring — **deploying soon.**)*
 
 ## Architecture
 
