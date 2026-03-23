@@ -31,6 +31,26 @@ router.post("/events", async (req: Request, res: Response) => {
     const created = await prisma.event.create({
       data: { userId, event, page, timestamp },
     });
+    // Aggregate synchronously so analytics work even without a separate worker process.
+    // The original design used an in-memory stream + worker, but that doesn't work across
+    // separate Node processes (each process has its own memory).
+    const BUCKET_SECONDS = 60;
+    const bucketTime = Math.floor(timestamp / BUCKET_SECONDS) * BUCKET_SECONDS;
+    const existing = await prisma.pageViewAggregate.findFirst({
+      where: { page, bucketTime },
+    });
+    if (existing) {
+      await prisma.pageViewAggregate.update({
+        where: { id: existing.id },
+        data: { count: existing.count + 1 },
+      });
+    } else {
+      await prisma.pageViewAggregate.create({
+        data: { page, count: 1, bucketTime },
+      });
+    }
+
+    // Keep queue enqueue for compatibility with the existing worker script.
     enqueueEvent({ userId, event, page, timestamp });
     return res.status(201).json({ id: created.id });
   } catch (e) {

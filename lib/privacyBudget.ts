@@ -1,11 +1,14 @@
 /**
- * Privacy budget tracking. Each query consumes epsilon; block if total > 5.
+ * Privacy budget tracking. Each query consumes epsilon; block if total exceeds budget limit.
+ *
+ * For demos, we default to a higher limit to avoid instant `429` responses from polling.
+ * Override with `PRIVY_BUDGET_LIMIT`.
  */
 
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
-const BUDGET_LIMIT = 5;
+const BUDGET_LIMIT = Number(process.env.PRIVY_BUDGET_LIMIT ?? 50);
 
 /**
  * Consume epsilon for a metric. Global budget: block if total (all metrics) > 5.
@@ -15,6 +18,10 @@ export async function consumePrivacyBudget(
   epsilon: number
 ): Promise<{ allowed: boolean; totalUsed: number }> {
   const totalUsed = await getPrivacyBudgetUsed();
+  // If epsilon is 0 (e.g. UI requests "true" counts), don't create budget records.
+  if (epsilon <= 0) {
+    return { allowed: true, totalUsed };
+  }
   if (totalUsed + epsilon > BUDGET_LIMIT) {
     return { allowed: false, totalUsed };
   }

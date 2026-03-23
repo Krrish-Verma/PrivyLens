@@ -8,10 +8,15 @@ interface MetricCardProps {
 
 export default function MetricCard({ title, value, subtitle }: MetricCardProps) {
   return (
-    <div className="rounded-xl bg-card border border-border p-5">
-      <p className="text-muted text-sm font-medium uppercase tracking-wide">{title}</p>
-      <p className="text-2xl font-bold text-white mt-1">{value}</p>
-      {subtitle != null && <p className="text-muted text-sm mt-1">{subtitle}</p>}
+    <div className="group relative overflow-hidden rounded-2xl border border-border-subtle bg-card/60 p-5 shadow-card backdrop-blur-sm transition hover:border-border hover:bg-card-hover/80">
+      <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-accent-muted opacity-0 blur-2xl transition group-hover:opacity-100" />
+      <p className="relative text-xs font-semibold uppercase tracking-wider text-muted">{title}</p>
+      <p className="relative mt-2 text-2xl font-bold tabular-nums tracking-tight text-foreground">
+        {value}
+      </p>
+      {subtitle != null && (
+        <p className="relative mt-1.5 text-sm text-foreground-soft">{subtitle}</p>
+      )}
     </div>
   );
 }

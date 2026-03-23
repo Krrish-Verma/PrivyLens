@@ -3,14 +3,36 @@
 @tailwind utilities;
 
 :root {
-  --surface: #0f1419;
-  --card: #1a2332;
-  --border: #2d3a4f;
-  --accent: #3b82f6;
-  --muted: #64748b;
+  --surface: #080c12;
+  --card: #111923;
+  --border: #243044;
+  --accent: #38bdf8;
+  --muted: #8b9cb3;
+  --foreground: #e8eef6;
 }
 
 body {
-  background: var(--surface);
-  color: #e2e8f0;
+  background-color: var(--surface);
+  color: var(--foreground);
+}
+
+@layer utilities {
+  .bg-app {
+    background-color: #080c12;
+    background-image: radial-gradient(
+        ellipse 120% 80% at 50% -20%,
+        rgba(56, 189, 248, 0.14),
+        transparent 55%
+      ),
+      radial-gradient(ellipse 60% 40% at 100% 0%, rgba(14, 165, 233, 0.08), transparent 50%);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+::selection {
+  background: rgba(56, 189, 248, 0.25);
+  color: #f8fafc;
 }
