@@ -8,6 +8,10 @@
     "dev": "concurrently \"npm run dev:api\" \"npm run dev:frontend\" \"npm run simulate\"",
     "dev:api": "tsx backend/server.ts",
     "dev:frontend": "cd frontend && npm run dev",
+    "dev:stack": "concurrently \"npm run dev:api\" \"npm run dev:frontend\"",
+    "build:frontend": "cd frontend && npm run build",
+    "start:frontend": "cd frontend && npm run start",
+    "db:migrate": "prisma migrate dev",
     "worker": "tsx backend/worker/processor.ts",
     "simulate": "tsx scripts/simulateUsers.ts",
     "postinstall": "prisma generate"

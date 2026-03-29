@@ -24,7 +24,7 @@ interface EventsPerMinuteRow {
 export default function DashboardPage() {
   const [pageviews, setPageviews] = useState<PageViewRow[]>([]);
   const [eventsPerMinute, setEventsPerMinute] = useState<EventsPerMinuteRow[]>([]);
-  const [budget, setBudget] = useState({ used: 0, limit: 5 });
+  const [budget, setBudget] = useState({ used: 0, limit: 50 });
   const [epsilon, setEpsilon] = useState(0.5);
   const [showNoisy, setShowNoisy] = useState(true);
   const [error, setError] = useState<string | null>(null);

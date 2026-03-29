@@ -9,9 +9,9 @@ This repo contains a **fully runnable local MVP**: event ingestion, streaming, d
 PrivyLens lets organizations analyze user activity without exposing individual user data. It includes:
 
 - **Event ingestion** via REST API
-- **Streaming analytics** (in-memory queue → worker, simulates Kinesis)
+- **Streaming analytics** (in-memory queue + optional worker, simulates Kinesis → Fargate)
 - **Differential privacy** (Laplace mechanism)
-- **Privacy budgets** (ε per query, hard cap)
+- **Privacy budgets** (ε per query, configurable cap via `PRIVY_BUDGET_LIMIT`)
 - **Encryption utility** (AES-256, KMS-style)
 - **Analytics dashboard** (Next.js + Recharts)
 
@@ -23,23 +23,18 @@ The system mirrors a cloud-style pipeline but runs entirely on your machine:
 
 ```
 ┌─────────────────┐
-│ Event Generator │  (scripts/simulateUsers.ts)
+│ Event Generator │  (scripts/simulateUsers.ts) — started with `npm run dev`
 └────────┬────────┘
          │ POST /api/events
          ▼
 ┌─────────────────┐
 │ API Gateway      │  Express API (backend/server.ts)
 └────────┬────────┘
-         │
+         │  Persists events + updates per-minute aggregates (SQLite)
          ▼
 ┌─────────────────┐
 │ Event Stream     │  In-memory queue (lib/stream.ts) — simulates Kinesis
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Worker Processor │  backend/worker/processor.ts — simulates Fargate
-└────────┬────────┘
+└────────┬────────┘   (optional `npm run worker` also drains this queue)
          │
          ▼
 ┌─────────────────┐
@@ -63,7 +58,7 @@ The system mirrors a cloud-style pipeline but runs entirely on your machine:
 |---------------|--------------------|
 | API Gateway   | Express API        |
 | Kinesis       | In-memory queue    |
-| Fargate       | Node worker       |
+| Fargate       | Node worker (optional) |
 | DynamoDB      | SQLite + Prisma    |
 | KMS           | lib/encryption.ts  |
 
@@ -85,7 +80,13 @@ npm install
 cd frontend && npm install && cd ..
 ```
 
-### 2. Database
+### 2. Environment
+
+Copy `.env.example` to `.env` at the project root (Prisma reads it). Optional: set `PRIVY_BUDGET_LIMIT` (default **50**).
+
+For the frontend, copy `frontend/.env.example` to `frontend/.env.local` if the API is not on `http://localhost:4000`.
+
+### 3. Database
 
 ```bash
 npx prisma migrate dev
@@ -93,61 +94,62 @@ npx prisma migrate dev
 
 This creates the SQLite DB and runs migrations.
 
-### 3. Start the stack
-
-**Terminal 1 – API + frontend:**
+### 4. Start the stack
 
 ```bash
 npm run dev
 ```
 
-This starts the Express API (port 4000) and the Next.js app (port 3000).
+This runs **three processes** in parallel:
 
-**Terminal 2 – Worker:**
+- Express API on **http://localhost:4000**
+- Next.js dev server on **http://localhost:3000** (or **3001** if 3000 is busy)
+- Event simulator posting `page_view` events to `POST /api/events`
+
+**Without** the simulator (API + UI only):
+
+```bash
+npm run dev:stack
+```
+
+**Optional** — separate worker (only needed if you want the queue drained in a second process; aggregates already update inside the API on ingest):
 
 ```bash
 npm run worker
 ```
 
-**Terminal 3 – Event simulator (optional):**
+### 5. Open the dashboard
 
-```bash
-npm run simulate
-```
-
-This sends continuous `page_view` events from 100 simulated users to `POST /api/events`.
-
-### 4. Open the dashboard
-
-In your browser:
-
-**http://localhost:3000/dashboard**
+Use the URL printed by Next.js (usually **http://localhost:3000/dashboard**).
 
 You should see:
 
-- Page views by page (bar chart)
-- Events per minute (time-series)
-- Privacy budget meter (ε used / 5.0)
+- Page views by page (bar chart), sorted by volume
+- Events per minute (time-series: **total events per minute bucket**)
+- Privacy budget meter (ε used / limit)
 - Epsilon slider and “Show noisy metrics” toggle
 
 ## Scripts
 
-| Script       | Description                          |
-|-------------|--------------------------------------|
-| `npm run dev`     | Start API + Next.js (concurrently)   |
-| `npm run worker`  | Run the stream processor worker      |
-| `npm run simulate` | Run the event generator script    |
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | API + Next.js + event simulator (recommended for demos) |
+| `npm run dev:stack` | API + Next.js only |
+| `npm run dev:api` | Express API only |
+| `npm run dev:frontend` | Next.js only |
+| `npm run simulate` | Event generator only |
+| `npm run worker` | Stream processor worker |
+| `npm run db:migrate` | `prisma migrate dev` |
+| `npm run build:frontend` | Production build of the Next app |
+| `npm run start:frontend` | Run `next start` (after `build:frontend`) |
 
 ## Demo workflow (recorder-friendly)
 
-1. `npm install`
-2. `cd frontend && npm install && cd ..`
-3. `npx prisma migrate dev`
-4. `npm run dev` (leave running)
-5. In a second terminal: `npm run worker`
-6. In a third terminal: `npm run simulate`
-7. Open **http://localhost:3000/dashboard**
-8. Show live analytics, toggle “Show noisy metrics,” move the epsilon slider, and point out the privacy budget cap.
+1. `npm install` and `cd frontend && npm install && cd ..`
+2. `npx prisma migrate dev`
+3. `npm run dev` and wait for “PrivyLens API” + Next “Local:” URL
+4. Open the dashboard URL shown in the terminal (note **3001** if 3000 is in use)
+5. Show live charts, toggle noisy metrics, adjust ε, and mention the privacy budget
 
 ## Project structure
 

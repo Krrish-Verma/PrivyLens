@@ -87,11 +87,13 @@ router.get("/analytics/pageviews", async (req: Request, res: Response) => {
       byPage.set(a.page, (byPage.get(a.page) ?? 0) + a.count);
     }
 
-    const result = Array.from(byPage.entries()).map(([page, count]) => ({
-      page,
-      count,
-      noisyCount: useNoise ? applyNoise(count, epsilon) : count,
-    }));
+    const result = Array.from(byPage.entries())
+      .map(([page, count]) => ({
+        page,
+        count,
+        noisyCount: useNoise ? applyNoise(count, epsilon) : count,
+      }))
+      .sort((a, b) => b.count - a.count);
 
     const totalUsed = await getPrivacyBudgetUsed(metric);
     return res.json({
@@ -122,14 +124,25 @@ router.get("/analytics/events-per-minute", async (req: Request, res: Response) =
 
   const aggregates = await prisma.pageViewAggregate.findMany({
     orderBy: [{ bucketTime: "asc" }],
-    take: 60,
   });
 
-  const series = aggregates.map((a) => ({
-    time: a.bucketTime,
-    count: a.count,
-    noisyCount: useNoise ? applyNoise(a.count, epsilon) : a.count,
-  }));
+  // Sum all pages per minute bucket (multiple rows share the same bucketTime).
+  const byBucket = new Map<number, number>();
+  for (const a of aggregates) {
+    byBucket.set(a.bucketTime, (byBucket.get(a.bucketTime) ?? 0) + a.count);
+  }
+
+  const sortedTimes = Array.from(byBucket.keys()).sort((x, y) => x - y);
+  const lastBucketTimes = sortedTimes.slice(-60);
+
+  const series = lastBucketTimes.map((time) => {
+    const count = byBucket.get(time) ?? 0;
+    return {
+      time,
+      count,
+      noisyCount: useNoise ? applyNoise(count, epsilon) : count,
+    };
+  });
 
   const totalUsed = await getPrivacyBudgetUsed(metric);
   return res.json({

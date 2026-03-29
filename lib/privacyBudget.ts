@@ -11,7 +11,7 @@ const prisma = new PrismaClient();
 const BUDGET_LIMIT = Number(process.env.PRIVY_BUDGET_LIMIT ?? 50);
 
 /**
- * Consume epsilon for a metric. Global budget: block if total (all metrics) > 5.
+ * Consume epsilon for a metric. Global budget: block if total (all metrics) exceeds BUDGET_LIMIT.
  */
 export async function consumePrivacyBudget(
   metric: string,
