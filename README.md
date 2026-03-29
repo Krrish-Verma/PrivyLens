@@ -103,8 +103,8 @@ npm run dev
 This runs **three processes** in parallel:
 
 - Express API on **http://localhost:4000**
-- Next.js dev server on **http://localhost:3000** (or **3001** if 3000 is busy)
-- Event simulator posting `page_view` events to `POST /api/events`
+- Next.js dev server on **http://localhost:3000** (fixed port; if it fails, something else is using 3000)
+- Event simulator (starts **after** the API responds on `/health`, so you do not get connection errors)
 
 **Without** the simulator (API + UI only):
 
@@ -120,7 +120,16 @@ npm run worker
 
 ### 5. Open the dashboard
 
-Use the URL printed by Next.js (usually **http://localhost:3000/dashboard**).
+Open **http://localhost:3000/dashboard** (or **http://127.0.0.1:3000/dashboard** if `localhost` does not resolve the same way on your machine).
+
+### Troubleshooting (page spins or never loads)
+
+1. **Database** — From the repo root run `npx prisma migrate dev` so SQLite tables exist. Without this, the API can error on startup or first request.
+2. **API up** — In the browser open [http://127.0.0.1:4000/health](http://127.0.0.1:4000/health). You should see `{"status":"ok"}`. If not, fix the API first; the dashboard will show “Failed to reach API”.
+3. **`localhost` vs `127.0.0.1`** — If the tab loads forever, try **127.0.0.1** instead of **localhost** for both port 3000 and 4000.
+4. **Port 3000 in use** — Stop the other app or change the dev command in `frontend/package.json` to another `-p` port and set `NEXT_PUBLIC_API_URL` if needed.
+5. **Project on OneDrive / cloud-synced folder** — The app enables **webpack polling** in dev so file watching still works; first compile can take a minute—wait until the terminal shows “Ready”.
+6. **`npm install` fails on `prisma generate` (EPERM)** — Another process has the Prisma engine file open. Quit other `node` / dev servers using this repo, then run `npx prisma generate` again. You can also run `npm install --ignore-scripts` once, then generate manually.
 
 You should see:
 
@@ -148,7 +157,7 @@ You should see:
 1. `npm install` and `cd frontend && npm install && cd ..`
 2. `npx prisma migrate dev`
 3. `npm run dev` and wait for “PrivyLens API” + Next “Local:” URL
-4. Open the dashboard URL shown in the terminal (note **3001** if 3000 is in use)
+4. Open **http://localhost:3000/dashboard** (see Troubleshooting if it does not load)
 5. Show live charts, toggle noisy metrics, adjust ε, and mention the privacy budget
 
 ## Project structure
