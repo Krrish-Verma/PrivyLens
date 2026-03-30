@@ -6,12 +6,14 @@ export default function Home() {
       <header className="border-b border-border-subtle/80 bg-surface-elevated/60 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
           <span className="text-sm font-semibold tracking-tight text-foreground">PrivyLens</span>
-          <Link
-            href="/dashboard"
-            className="text-sm font-medium text-muted transition hover:text-accent"
-          >
-            Dashboard
-          </Link>
+          <nav className="flex items-center gap-4 text-sm">
+            <Link href="/" className="font-semibold text-foreground">
+              Home
+            </Link>
+            <Link href="/dashboard" className="font-medium text-muted transition hover:text-accent">
+              Dashboard
+            </Link>
+          </nav>
         </div>
       </header>
 

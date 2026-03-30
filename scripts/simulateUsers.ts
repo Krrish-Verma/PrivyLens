@@ -1,26 +1,23 @@
 /**
- * Simulates 100 users generating page_view events to POST /api/events.
- * Pages: home, pricing, docs, blog, login. One event every ~200ms.
+ * Deterministic event sender (optional tool).
+ * Sends a fixed, round-robin sequence to POST /api/events.
  */
 
 const API_URL = process.env.API_URL ?? "http://localhost:4000";
-const PAGES = ["home", "pricing", "docs", "blog", "login"];
+const PAGES = ["marketing site", "pricing page", "developer docs", "dashboard", "login"];
 const NUM_USERS = 100;
 const INTERVAL_MS = 200;
-
-function randomPage(): string {
-  return PAGES[Math.floor(Math.random() * PAGES.length)];
-}
-
-function randomUserId(): string {
-  return `u${Math.floor(Math.random() * NUM_USERS) + 1}`;
-}
+let cursor = 0;
 
 async function sendEvent(): Promise<void> {
+  const page = PAGES[cursor % PAGES.length];
+  const userId = `u${(cursor % NUM_USERS) + 1}`;
+  cursor += 1;
+
   const payload = {
-    userId: randomUserId(),
+    userId,
     event: "page_view",
-    page: randomPage(),
+    page,
     timestamp: Math.floor(Date.now() / 1000),
   };
   try {

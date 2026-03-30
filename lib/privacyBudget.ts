@@ -1,49 +1,62 @@
 /**
- * Privacy budget tracking. Each query consumes epsilon; block if total exceeds budget limit.
- *
- * For demos, we default to a higher limit to avoid instant `429` responses from polling.
- * Override with `PRIVY_BUDGET_LIMIT`.
+ * In-memory privacy budget for deterministic demo behavior.
+ * - Max budget: 5.0
+ * - Resets every 30 seconds
  */
 
-import { PrismaClient } from "@prisma/client";
+const BUDGET_LIMIT = 5.0;
+const RESET_WINDOW_SECONDS = 30;
 
-const prisma = new PrismaClient();
-const BUDGET_LIMIT = Number(process.env.PRIVY_BUDGET_LIMIT ?? 50);
+interface BudgetState {
+  used: number;
+  windowStartSec: number;
+}
+
+const state: BudgetState = {
+  used: 0,
+  windowStartSec: Math.floor(Date.now() / 1000),
+};
+
+function refreshWindow(nowSec: number): void {
+  if (nowSec - state.windowStartSec >= RESET_WINDOW_SECONDS) {
+    state.used = 0;
+    state.windowStartSec = nowSec;
+  }
+}
+
+export interface BudgetSnapshot {
+  used: number;
+  limit: number;
+  remaining: number;
+  resetInSeconds: number;
+}
+
+export async function getBudgetSnapshot(): Promise<BudgetSnapshot> {
+  const nowSec = Math.floor(Date.now() / 1000);
+  refreshWindow(nowSec);
+  return {
+    used: Number(state.used.toFixed(2)),
+    limit: BUDGET_LIMIT,
+    remaining: Number(Math.max(0, BUDGET_LIMIT - state.used).toFixed(2)),
+    resetInSeconds: Math.max(0, RESET_WINDOW_SECONDS - (nowSec - state.windowStartSec)),
+  };
+}
 
 /**
- * Consume epsilon for a metric. Global budget: block if total (all metrics) exceeds BUDGET_LIMIT.
+ * Consume epsilon from the current window.
  */
 export async function consumePrivacyBudget(
-  metric: string,
   epsilon: number
-): Promise<{ allowed: boolean; totalUsed: number }> {
-  const totalUsed = await getPrivacyBudgetUsed();
-  // If epsilon is 0 (e.g. UI requests "true" counts), don't create budget records.
-  if (epsilon <= 0) {
-    return { allowed: true, totalUsed };
+): Promise<{ allowed: boolean; snapshot: BudgetSnapshot }> {
+  const nowSec = Math.floor(Date.now() / 1000);
+  refreshWindow(nowSec);
+
+  if (state.used + epsilon > BUDGET_LIMIT) {
+    return { allowed: false, snapshot: await getBudgetSnapshot() };
   }
-  if (totalUsed + epsilon > BUDGET_LIMIT) {
-    return { allowed: false, totalUsed };
-  }
-  await prisma.privacyBudget.create({
-    data: {
-      metric,
-      epsilonUsed: epsilon,
-      timestamp: Math.floor(Date.now() / 1000),
-    },
-  });
-  return { allowed: true, totalUsed: totalUsed + epsilon };
+
+  state.used = Number((state.used + epsilon).toFixed(2));
+  return { allowed: true, snapshot: await getBudgetSnapshot() };
 }
 
-/**
- * Get total epsilon used for a metric (or all metrics).
- */
-export async function getPrivacyBudgetUsed(metric?: string): Promise<number> {
-  const result = await prisma.privacyBudget.aggregate({
-    where: metric ? { metric } : undefined,
-    _sum: { epsilonUsed: true },
-  });
-  return result._sum.epsilonUsed ?? 0;
-}
-
-export { BUDGET_LIMIT };
+export { BUDGET_LIMIT, RESET_WINDOW_SECONDS };

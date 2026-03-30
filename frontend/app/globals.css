@@ -3,28 +3,30 @@
 @tailwind utilities;
 
 :root {
-  --surface: #080c12;
-  --card: #111923;
-  --border: #243044;
-  --accent: #38bdf8;
-  --muted: #8b9cb3;
-  --foreground: #e8eef6;
+  --surface: #110f1a;
+  --card: #171424;
+  --border: #2d2641;
+  --accent: #a78bfa;
+  --muted: #6b7280;
+  --foreground: #e6edf3;
 }
 
 body {
   background-color: var(--surface);
   color: var(--foreground);
+  letter-spacing: -0.01em;
 }
 
 @layer utilities {
   .bg-app {
-    background-color: #080c12;
+    background-color: #110f1a;
     background-image: radial-gradient(
-        ellipse 120% 80% at 50% -20%,
-        rgba(56, 189, 248, 0.14),
-        transparent 55%
+        ellipse 110% 78% at 8% -14%,
+        rgba(167, 139, 250, 0.2),
+        transparent 44%
       ),
-      radial-gradient(ellipse 60% 40% at 100% 0%, rgba(14, 165, 233, 0.08), transparent 50%);
+      radial-gradient(ellipse 70% 50% at 100% 0%, rgba(244, 114, 182, 0.08), transparent 52%),
+      radial-gradient(ellipse 60% 40% at 50% 100%, rgba(250, 204, 21, 0.05), transparent 58%);
   }
 
   .text-balance {
@@ -33,6 +35,6 @@ body {
 }
 
 ::selection {
-  background: rgba(56, 189, 248, 0.25);
+  background: rgba(167, 139, 250, 0.3);
   color: #f8fafc;
 }

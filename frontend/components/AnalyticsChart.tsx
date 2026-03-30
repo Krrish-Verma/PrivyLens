@@ -24,21 +24,20 @@ interface AnalyticsChartProps {
   title: string;
 }
 
-const CHART_GRID = "#1e2a3d";
-const CHART_AXIS = "#5c6d84";
-const CHART_TICK = "#94a3b8";
+const CHART_GRID = "rgba(157, 167, 179, 0.14)";
+const CHART_AXIS = "#6B7280";
+const CHART_TICK = "#9DA7B3";
 
 export default function AnalyticsChart({ data, showNoisy, title }: AnalyticsChartProps) {
-  const key = showNoisy ? "noisyCount" : "count";
-  const name = showNoisy ? "Noisy count" : "True count";
-  const gradId = `bar-${useId().replace(/:/g, "")}`;
+  const trueGradId = `true-bar-${useId().replace(/:/g, "")}`;
+  const noisyGradId = `noisy-bar-${useId().replace(/:/g, "")}`;
 
   const empty = data.length === 0;
 
   return (
-    <div className="rounded-2xl border border-border-subtle bg-card/60 p-5 shadow-card backdrop-blur-sm md:p-6">
+    <div className="rounded-2xl bg-surface-elevated/70 p-5 shadow-soft transition duration-200 hover:scale-[1.01]">
       <div className="mb-4 flex items-start justify-between gap-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">{title}</h3>
+        <h3 className="text-base font-semibold text-foreground">{title}</h3>
       </div>
       {empty ? (
         <div className="flex h-80 flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface-elevated/50 text-center">
@@ -50,43 +49,76 @@ export default function AnalyticsChart({ data, showNoisy, title }: AnalyticsChar
       ) : (
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 8, right: 12, left: -8, bottom: 4 }}>
+            <BarChart data={data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }} barCategoryGap={12}>
               <defs>
-                <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id={trueGradId} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#a5b4fc" stopOpacity={0.95} />
+                  <stop offset="100%" stopColor="#6366f1" stopOpacity={0.9} />
+                </linearGradient>
+                <linearGradient id={noisyGradId} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#7dd3fc" stopOpacity={0.95} />
                   <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0.85} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
+              <CartesianGrid strokeDasharray="2 10" stroke={CHART_GRID} vertical={false} />
               <XAxis
                 dataKey="page"
                 stroke={CHART_AXIS}
                 tick={{ fill: CHART_TICK, fontSize: 12 }}
                 tickLine={false}
-                axisLine={{ stroke: CHART_GRID }}
+                axisLine={false}
               />
               <YAxis
                 stroke={CHART_AXIS}
                 tick={{ fill: CHART_TICK, fontSize: 12 }}
                 tickLine={false}
-                axisLine={{ stroke: CHART_GRID }}
+                axisLine={false}
               />
               <Tooltip
                 cursor={{ fill: "rgba(56, 189, 248, 0.06)" }}
-                contentStyle={{
-                  backgroundColor: "#111923",
-                  border: "1px solid #243044",
-                  borderRadius: "12px",
-                  boxShadow: "0 12px 40px -12px rgba(0,0,0,0.55)",
+                content={({ active, payload, label }) => {
+                  if (!active || !payload?.length) return null;
+                  const trueRow = payload.find((p) => p.dataKey === "count");
+                  const noisyRow = payload.find((p) => p.dataKey === "noisyCount");
+                  const trueCount = Number(trueRow?.value ?? 0);
+                  const noisyCount = Number(noisyRow?.value ?? 0);
+                  const delta = noisyCount - trueCount;
+                  return (
+                    <div
+                      className="rounded-xl border border-border/70 px-3 py-2 text-sm shadow-soft"
+                      style={{
+                        backgroundColor: "#11161c",
+                      }}
+                    >
+                      <p className="mb-1 font-medium text-foreground-soft">Page: {label}</p>
+                      <p className="text-foreground">Exact count: {trueCount}</p>
+                      <p className="text-foreground">Private count: {noisyCount}</p>
+                      <p className="text-foreground-soft">
+                        Noise added: {delta >= 0 ? `+${delta}` : delta}
+                      </p>
+                    </div>
+                  );
                 }}
-                labelStyle={{ color: "#c4d0e0", fontWeight: 600 }}
-                itemStyle={{ color: "#e8eef6" }}
               />
               <Legend
-                wrapperStyle={{ paddingTop: 16 }}
+                wrapperStyle={{ paddingTop: 10 }}
                 formatter={(value) => <span className="text-sm text-foreground-soft">{value}</span>}
               />
-              <Bar dataKey={key} name={name} fill={`url(#${gradId})`} radius={[6, 6, 0, 0]} maxBarSize={48} />
+              <Bar
+                dataKey="count"
+                name="Exact count"
+                fill={`url(#${trueGradId})`}
+                radius={[6, 6, 0, 0]}
+                maxBarSize={42}
+              />
+              <Bar
+                dataKey="noisyCount"
+                name="Private count"
+                fill={`url(#${noisyGradId})`}
+                radius={[6, 6, 0, 0]}
+                maxBarSize={42}
+                opacity={showNoisy ? 1 : 0.25}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>

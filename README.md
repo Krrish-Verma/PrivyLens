@@ -1,198 +1,155 @@
 # PrivyLens
 
-**Privacy-Preserving Analytics Dashboard** — Deliver actionable user insights without ever exposing individual data. This project combines differential privacy with a cloud-native-style stack to ensure mathematically guaranteed privacy.
+**Privacy-safe product analytics you can demo in minutes.** PrivyLens is a full-stack reference implementation of how a SaaS or platform team can ship **aggregate usage insights**—page traffic, trends, and dashboards—while making it **hard to infer whether any single person** did something specific. It pairs a polished **Next.js** frontend with an **Express** analytics API, **differential privacy** (Laplace noise), and a **privacy budget** so repeated queries cannot silently grind down protections.
 
-This repo contains a **fully runnable local MVP**: event ingestion, streaming, differential privacy (Laplace noise), privacy budgets, and an analytics dashboard—all runnable on your machine.
+This project is built to read clearly in an interview or portfolio review: the story is *privacy-safe analytics for real product teams*, not a toy chart.
 
-## Overview
+---
 
-PrivyLens lets organizations analyze user activity without exposing individual user data. It includes:
+## Why this exists
 
-- **Event ingestion** via REST API
-- **Streaming analytics** (in-memory queue + optional worker, simulates Kinesis → Fargate)
-- **Differential privacy** (Laplace mechanism)
-- **Privacy budgets** (ε per query, configurable cap via `PRIVY_BUDGET_LIMIT`)
-- **Encryption utility** (AES-256, KMS-style)
-- **Analytics dashboard** (Next.js + Recharts)
+Product and growth teams need to know *what* is used and *where* users go. Classic analytics give sharp numbers, but sharp numbers can leak individual behavior when someone asks many questions or compares reports over time. Regulators and customers increasingly expect **formal privacy thinking**, not only “we aggregate data.”
 
-*(Cloud version: real-time ingestion via AWS Kinesis/API Gateway, DP engine with ε budgets in DynamoDB, Fargate/Lambda, KMS-encrypted storage, CloudWatch monitoring — **deploying soon.**)*
+PrivyLens demonstrates **controlled noise** on top of exact aggregates: you still see **directional truth** (which surfaces matter, how traffic moves), while **single-user actions** are intentionally obscured. A **query budget** caps how much “privacy spend” each release of statistics consumes, mirroring how real systems limit repeated sensitive queries.
 
-## Architecture
+---
 
-The system mirrors a cloud-style pipeline but runs entirely on your machine:
+## What it does
 
-```
-┌─────────────────┐
-│ Event Generator │  (scripts/simulateUsers.ts) — started with `npm run dev`
-└────────┬────────┘
-         │ POST /api/events
-         ▼
-┌─────────────────┐
-│ API Gateway      │  Express API (backend/server.ts)
-└────────┬────────┘
-         │  Persists events + updates per-minute aggregates (SQLite)
-         ▼
-┌─────────────────┐
-│ Event Stream     │  In-memory queue (lib/stream.ts) — simulates Kinesis
-└────────┬────────┘   (optional `npm run worker` also drains this queue)
-         │
-         ▼
-┌─────────────────┐
-│ SQLite (Prisma) │  Simulates DynamoDB
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Differential     │  lib/differentialPrivacy.ts
-│ Privacy Engine   │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Next.js         │  /dashboard
-│ Dashboard       │
-└─────────────────┘
-```
+| Capability | What you see |
+|------------|----------------|
+| **Exact vs private counts** | Side-by-side table: exact counts, differentially private counts, and signed noise per page. |
+| **Privacy level (ε)** | Slider mapped to human labels (Low Privacy / Balanced / High Privacy) with epsilon shown for technical readers. |
+| **Privacy budget** | Each analytics request consumes ε; budget depletes and resets on a window; UI shows remaining time and polished limit messaging. |
+| **Single-user simulation** | Toggle adds exactly **+1** to the **pricing page** true count; private output stays in the “noise band” so the individual visit is not clearly revealed—classic DP intuition. |
+| **Charts** | Page traffic (bars) and visit trend over time (series), with legends and tooltips aligned to “exact” vs “private” language. |
+| **SaaS-style framing** | Surfaces named like a real product: marketing site, pricing page, developer docs, dashboard, login. |
 
-| Cloud service | Local equivalent   |
-|---------------|--------------------|
-| API Gateway   | Express API        |
-| Kinesis       | In-memory queue    |
-| Fargate       | Node worker (optional) |
-| DynamoDB      | SQLite + Prisma    |
-| KMS           | lib/encryption.ts  |
+**Core mechanisms (unchanged philosophy):**
+
+- **Laplace mechanism** — noise scale tied to ε and sensitivity; outputs are non-negative integers suitable for dashboards.
+- **Deterministic demo data** — aggregates come from a fixed ground-truth base with light time-based drift so the demo feels alive without turning into a chaotic live feed.
+- **Budget window** — limits cumulative ε per time window; aligns with “composition” and repeated-query risk in production narratives.
+
+---
+
+## Where this could be implemented
+
+These are realistic places teams adopt this *class* of design—not a promise that this repo is production-hardened as-is, but a credible answer to “where would this go?”
+
+- **B2B SaaS** — Internal analytics on feature usage, page paths, and docs traffic without exposing whether *customer X* clicked pricing or viewed a specific doc.
+- **Healthcare / edtech / fintech** — High-sensitivity domains where **aggregate reporting** must coexist with **strict inference limits**; DP is one tool in a broader compliance story (policy, access control, auditing).
+- **Mobile and web SDKs** — Telemetry pipelines that batch events server-side and release **noisy aggregates** to product dashboards instead of raw per-user counts on every slice.
+- **Data platforms** — A **privacy budget** service next to your warehouse or metrics API: each approved query spends ε; analysts see when the “privacy envelope” for the period is exhausted.
+
+---
 
 ## Tech stack
 
-- **Frontend:** Next.js 14, React, TailwindCSS, Recharts  
-- **Backend:** Node.js, Express, TypeScript  
-- **Database:** SQLite with Prisma ORM  
-- **Utilities:** Node `crypto` (AES-256), custom DP (Laplace)
+| Layer | Choice |
+|-------|--------|
+| Frontend | **Next.js 14** (App Router), **React**, **Tailwind CSS**, **Recharts** |
+| Backend | **Node.js**, **Express**, **Zod** validation |
+| Privacy core | Shared **TypeScript** modules: Laplace noise, ε clamping, in-memory budget window |
+| Data (optional tooling) | **Prisma** / SQLite for other project paths; demo analytics API uses deterministic aggregates for a stable demo |
 
-## How to run the demo
+---
 
-### 1. Install dependencies
+## Architecture (high level)
 
-From the project root:
+```
+Browser (dashboard)
+    → REST: /api/analytics/pageviews, /api/analytics/events-per-minute, /api/analytics/budget
+    → Express applies consumePrivacyBudget(ε), then applyNoise(...) per metric
+    → JSON to charts and comparison table
+```
+
+Event ingestion exists for compatibility; the live demo emphasizes **reproducible, explainable** aggregates suitable for interviews.
+
+---
+
+## Quick start
+
+From the repository root (Windows PowerShell-friendly):
 
 ```bash
 npm install
-cd frontend && npm install && cd ..
-```
-
-### 2. Environment
-
-Copy `.env.example` to `.env` at the project root (Prisma reads it). Optional: set `PRIVY_BUDGET_LIMIT` (default **50**).
-
-For the frontend, copy `frontend/.env.example` to `frontend/.env.local` if the API is not on `http://localhost:4000`.
-
-### 3. Database
-
-```bash
+npx prisma generate
 npx prisma migrate dev
-```
-
-This creates the SQLite DB and runs migrations.
-
-### 4. Start the stack
-
-```bash
 npm run dev
 ```
 
-This runs **three processes** in parallel:
+Then open:
 
-- Express API on **http://localhost:4000**
-- Next.js dev server on **http://localhost:3000** (fixed port; if it fails, something else is using 3000)
-- Event simulator (starts **after** the API responds on `/health`, so you do not get connection errors)
+- **Landing:** [http://127.0.0.1:3000](http://127.0.0.1:3000)
+- **Dashboard:** [http://127.0.0.1:3000/dashboard](http://127.0.0.1:3000/dashboard)
 
-**Without** the simulator (API + UI only):
+**API health:** [http://127.0.0.1:4000/health](http://127.0.0.1:4000/health)
 
-```bash
-npm run dev:stack
-```
-
-**Optional** — separate worker (only needed if you want the queue drained in a second process; aggregates already update inside the API on ingest):
+### If ports are busy or the dev server acts stale
 
 ```bash
-npm run worker
+npm run dev:reset
 ```
 
-### 5. Open the dashboard
+This frees ports `3000` and `4000`, clears the Next.js cache under `frontend/.next`, and starts the stack again.
 
-Open **http://localhost:3000/dashboard** (or **http://127.0.0.1:3000/dashboard** if `localhost` does not resolve the same way on your machine).
+### Optional: event simulator
 
-### Troubleshooting (page spins or never loads)
+With the API up:
 
-1. **Database** — From the repo root run `npx prisma migrate dev` so SQLite tables exist. Without this, the API can error on startup or first request.
-2. **API up** — In the browser open [http://127.0.0.1:4000/health](http://127.0.0.1:4000/health). You should see `{"status":"ok"}`. If not, fix the API first; the dashboard will show “Failed to reach API”.
-3. **`localhost` vs `127.0.0.1`** — If the tab loads forever, try **127.0.0.1** instead of **localhost** for both port 3000 and 4000.
-4. **Port 3000 in use** — Stop the other app or change the dev command in `frontend/package.json` to another `-p` port and set `NEXT_PUBLIC_API_URL` if needed.
-5. **Project on OneDrive / cloud-synced folder** — The app enables **webpack polling** in dev so file watching still works; first compile can take a minute—wait until the terminal shows “Ready”.
-6. **`npm install` fails on `prisma generate` (EPERM)** — Another process has the Prisma engine file open. Quit other `node` / dev servers using this repo, then run `npx prisma generate` again. You can also run `npm install --ignore-scripts` once, then generate manually.
-
-You should see:
-
-- Page views by page (bar chart), sorted by volume
-- Events per minute (time-series: **total events per minute bucket**)
-- Privacy budget meter (ε used / limit)
-- Epsilon slider and “Show noisy metrics” toggle
-
-## Scripts
-
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | API + Next.js + event simulator (recommended for demos) |
-| `npm run dev:stack` | API + Next.js only |
-| `npm run dev:api` | Express API only |
-| `npm run dev:frontend` | Next.js only |
-| `npm run simulate` | Event generator only |
-| `npm run worker` | Stream processor worker |
-| `npm run db:migrate` | `prisma migrate dev` |
-| `npm run build:frontend` | Production build of the Next app |
-| `npm run start:frontend` | Run `next start` (after `build:frontend`) |
-
-## Demo workflow (recorder-friendly)
-
-1. `npm install` and `cd frontend && npm install && cd ..`
-2. `npx prisma migrate dev`
-3. `npm run dev` and wait for “PrivyLens API” + Next “Local:” URL
-4. Open **http://localhost:3000/dashboard** (see Troubleshooting if it does not load)
-5. Show live charts, toggle noisy metrics, adjust ε, and mention the privacy budget
-
-## Project structure
-
+```bash
+npm run dev:simulate
 ```
-privylens
-├── frontend/
-│   ├── app/
-│   │   ├── page.tsx
-│   │   └── dashboard/
-│   │       └── page.tsx
-│   └── components/
-│       ├── AnalyticsChart.tsx
-│       ├── EventsPerMinuteChart.tsx
-│       ├── MetricCard.tsx
-│       └── PrivacyBudget.tsx
-├── backend/
-│   ├── server.ts
-│   ├── routes/
-│   │   └── events.ts
-│   └── worker/
-│       └── processor.ts
-├── lib/
-│   ├── stream.ts
-│   ├── differentialPrivacy.ts
-│   ├── encryption.ts
-│   └── privacyBudget.ts
-├── prisma/
-│   └── schema.prisma
-├── scripts/
-│   └── simulateUsers.ts
-├── package.json
-└── README.md
-```
+
+(or run `npm run simulate` after `wait-on` succeeds). Sends a round-robin stream to `POST /api/events` for pipeline realism; demo aggregates remain deterministic for consistency.
+
+---
+
+## Ground truth (demo dataset)
+
+Base counts per surface (before optional time drift):
+
+| Surface | Approx. volume |
+|---------|----------------|
+| marketing site | 1200 |
+| pricing page | 800 |
+| developer docs | 300 |
+| dashboard | 1000 |
+| login | 200 |
+
+**Single-user simulation:** adds exactly **+1** to **pricing page** true count; private counts remain useful for trends while not reliably revealing that one visit.
+
+---
+
+## Privacy budget (demo parameters)
+
+- **Limit:** 5.0 (ε-units per window, as implemented in `lib/privacyBudget.ts`)
+- **Each** pageviews and events-per-minute request **consumes** the current ε
+- **Window reset:** 30 seconds (countdown surfaced in the UI)
+
+---
+
+## Demo script (~2 minutes)
+
+1. Open the dashboard and point to the **use case** line: privacy-safe product analytics for a SaaS-style product.
+2. Show **exact vs private** columns and **noise added**; move the **privacy level** and note accuracy vs protection.
+3. Turn on **simulate a single user on the pricing page**; highlight that **true count** steps by 1 while **private count** does not reliably out the individual.
+4. Trigger enough queries to hit the **privacy limit**; show the pause message, then wait for reset and recovery.
+
+---
+
+## Notes for reviewers
+
+- **Development:** Next.js dev runs without Turbopack by default for stable local behavior on Windows.
+- **Prisma `EPERM` on Windows:** close Node processes using the generated client, remove stray `query_engine-windows.dll.node.tmp*` files under `node_modules/.prisma/client` if needed, then `npx prisma generate`.
+
+---
 
 ## License
 
-MIT.
+See the repository for license terms (add a `LICENSE` file if you distribute publicly).
+
+---
+
+*PrivyLens: aggregate insights with explicit privacy tradeoffs—ready to explain in one elevator ride.*
